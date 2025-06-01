@@ -1,73 +1,45 @@
 import os
 from typing import List
-from langchain_ollama import OllamaEmbeddings, OllamaLLM
-from langchain_community.vectorstores import FAISS
-from langchain.chains import RetrievalQA
 from PyPDF2 import PdfReader
 import pytesseract
-from PIL import Image
 from pdf2image import convert_from_path
-from src.fingpt_agents.utils.logger_utils import logger  # import centralized logger
-
-class EmbeddingModel:
-    def __init__(self):
-        logger.info("Initializing Ollama Embedding model...")
-        self.model = OllamaEmbeddings(model="llama3")
-
-    def embed(self, texts: List[str]):
-        logger.info(f"Generating embeddings for {len(texts)} texts...")
-        return self.model.embed_documents(texts)
-
-class VectorStore:
-    def __init__(self, embedding_model: EmbeddingModel):
-        logger.info("Initializing FAISS vector store...")
-        self.store = None
-        self.embedding_model = embedding_model
-
-    def add_texts(self, texts: List[str]):
-        logger.info("Adding texts to FAISS vector store...")
-        self.store = FAISS.from_texts(
-            texts=texts,
-            embedding=self.embedding_model.model  # Correct usage
-        )
-
-    def get_retriever(self):
-        logger.info("Retrieving from FAISS vector store...")
-        return self.store.as_retriever()
-
-class QAChain:
-    def __init__(self):
-        self.qa = None
-
-    def build(self, vector_store: VectorStore):
-        logger.info("Initializing LLM (OllamaLLM) for QA chain...")
-        llm = OllamaLLM(model="llama3")
-        retriever = vector_store.get_retriever()
-        self.qa = RetrievalQA.from_chain_type(llm=llm, retriever=retriever)
-
-    def run(self, query: str) -> str:
-        logger.info("Running the QA chain on the query...")
-        return self.qa.invoke({"query": query})["result"]
+from src.fingpt_agents.utils.logger_utils import logger
 
 def extract_text_from_pdf(pdf_path: str) -> List[str]:
-    logger.info("Attempting text extraction using PyPDF2...")
+    """
+    Extract text from PDF using PyPDF2, and if that fails or no text is found,
+    fallback to OCR using pytesseract.
+    Returns a list of text chunks (one per page or image).
+    """
+    logger.info(f"[LOAD] Extracting text from {pdf_path}")
+    # Try PyPDF2 text extraction first
     try:
         reader = PdfReader(pdf_path)
-        texts = [page.extract_text() for page in reader.pages if page.extract_text()]
+        texts = []
+        for page in reader.pages:
+            text = page.extract_text()
+            if text and text.strip():
+                texts.append(text)
         if texts:
+            logger.info(f"[LOAD] Extracted text using PyPDF2 from {pdf_path}, {len(texts)} pages")
             return texts
+        else:
+            logger.info(f"[LOAD] No text found via PyPDF2 in {pdf_path}, falling back to OCR")
     except Exception as e:
-        logger.error(f"Failed to extract with PyPDF2: {e}")
+        logger.error(f"[LOAD] PyPDF2 extraction failed for {pdf_path}: {e}")
 
-    logger.info("Falling back to OCR with pytesseract...")
+    # OCR fallback using pytesseract
     try:
         images = convert_from_path(pdf_path)
         texts = []
-        for img in images:
+        for i, img in enumerate(images):
             text = pytesseract.image_to_string(img)
-            if text.strip():
+            if text and text.strip():
                 texts.append(text)
+            else:
+                logger.warning(f"[LOAD] OCR page {i+1} empty in {pdf_path}")
+        logger.info(f"[LOAD] Extracted text using OCR from {pdf_path}, {len(texts)} pages")
         return texts
     except Exception as e:
-        logger.error(f"OCR failed: {e}")
+        logger.error(f"[LOAD] OCR extraction failed for {pdf_path}: {e}")
         return []

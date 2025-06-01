@@ -1,38 +1,40 @@
-from pathlib import Path
-from datetime import datetime
+import os
+from typing import List
 import yfinance as yf
-import pandas as pd
+from src.fingpt_agents.utils.logger_utils import logger  # <-- use this
 
-from src.fingpt_agents.utils.logger_utils import logger  # import your configured logger
+DEFAULT_TICKERS = [
+    "AAPL", "GOOGL", "MSFT", "AMZN", "TSLA",
+    "NVDA", "META", "NFLX", "INTC", "CSCO"
+]
 
 class DataIngestionAgent:
-    def __init__(self, tickers, start="2010-01-01", end=None):
-        self.tickers = [t.upper() for t in tickers]
-        self.start = start
-        self.end = end or datetime.today().strftime("%Y-%m-%d")
-        self.dataframes = {}
+    def __init__(
+        self,
+        tickers: List[str] = None,
+        start_date: str = "2022-01-01",
+        end_date: str = "2022-12-31",
+        save_dir: str = "data/stock_data"
+    ):
+        self.tickers = tickers or DEFAULT_TICKERS
+        self.start_date = start_date
+        self.end_date = end_date
+        self.save_dir = save_dir
+        os.makedirs(self.save_dir, exist_ok=True)
 
-        logger.info(f"[INIT] Initialized for tickers: {', '.join(self.tickers)}")
+        logger.info(f"[INIT] DataIngestionAgent initialized with {len(self.tickers)} tickers.")
 
     def fetch_stock_data(self):
-        logger.info(f"[FETCH] Fetching data from {self.start} to {self.end}")
+        logger.info(f"[FETCH] Downloading stock data from {self.start_date} to {self.end_date}...")
         for ticker in self.tickers:
-            logger.info(f"[FETCH] Downloading {ticker}...")
-            df = yf.download(ticker, start=self.start, end=self.end)
-            if df.empty:
-                logger.warning(f"[WARN] No data fetched for {ticker}")
-            else:
-                df.reset_index(inplace=True)
-                self.dataframes[ticker] = df
-                logger.info(f"[DONE] Fetched {len(df)} rows for {ticker}")
-
-    def save_to_csv(self, path="data/processed/"):
-        Path(path).mkdir(parents=True, exist_ok=True)
-        for ticker, df in self.dataframes.items():
-            # Flatten multi-index columns if any
-            if isinstance(df.columns, pd.MultiIndex):
-                df.columns = ['_'.join(col).strip() for col in df.columns.values]
-
-            file_path = Path(path) / f"{ticker}_stock_data.csv"
-            df.to_csv(file_path, index=True)
-            logger.info(f"[SAVE] Saved {ticker} data to {file_path}")
+            try:
+                logger.info(f"[FETCH] Downloading data for {ticker}")
+                data = yf.download(ticker, start=self.start_date, end=self.end_date)
+                if data.empty:
+                    logger.warning(f"[WARN] No data found for {ticker}. Skipping.")
+                    continue
+                filepath = os.path.join(self.save_dir, f"{ticker}.csv")
+                data.to_csv(filepath)
+                logger.info(f"[SAVE] {ticker} data saved to {filepath}")
+            except Exception as e:
+                logger.error(f"[ERROR] Failed to download {ticker}: {e}")
