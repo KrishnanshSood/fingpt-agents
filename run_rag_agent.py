@@ -1,16 +1,14 @@
 from src.fingpt_agents.agents.rag_agent import RAGAgent
-from colorama import Fore, Style
+from src.fingpt_agents.utils.logger_utils import setup_logging, logger
 
 def main():
-    log(f"{Fore.GREEN}Starting RAG pipeline...{Style.RESET_ALL}")
+    setup_logging()
+    logger.info("[MAIN] Starting RAG pipeline...")
     rag_agent = RAGAgent()
     pdf_path = "data/filings/APPLE_10K_2022.pdf"
     query = "What are the major risk factors Apple mentions in the 10-K report?"
     answer = rag_agent.run_rag(pdf_path, query)
-    print(f"{Fore.GREEN}Answer:\n{Style.RESET_ALL}{answer}")
-
-def log(message: str):
-    print(message)
+    print(f"Answer:\n{answer}")
 
 if __name__ == "__main__":
     main()

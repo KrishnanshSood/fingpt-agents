@@ -1,15 +1,9 @@
-import yfinance as yf
-import pandas as pd
 from pathlib import Path
 from datetime import datetime
-import logging
-from colorama import Fore, Style, init
+import yfinance as yf
+import pandas as pd
 
-# Initialize colorama
-init(autoreset=True)
-
-# Setup logging with simple format
-logging.basicConfig(level=logging.INFO, format="%(message)s")
+from src.fingpt_agents.utils.logger_utils import logger  # import your configured logger
 
 class DataIngestionAgent:
     def __init__(self, tickers, start="2010-01-01", end=None):
@@ -18,19 +12,19 @@ class DataIngestionAgent:
         self.end = end or datetime.today().strftime("%Y-%m-%d")
         self.dataframes = {}
 
-        logging.info(f"{Fore.GREEN}[INIT]{Style.RESET_ALL} Initialized for tickers: {', '.join(self.tickers)}")
+        logger.info(f"[INIT] Initialized for tickers: {', '.join(self.tickers)}")
 
     def fetch_stock_data(self):
-        logging.info(f"{Fore.BLUE}[FETCH]{Style.RESET_ALL} Fetching data from {self.start} to {self.end}")
+        logger.info(f"[FETCH] Fetching data from {self.start} to {self.end}")
         for ticker in self.tickers:
-            logging.info(f"{Fore.CYAN}[FETCH]{Style.RESET_ALL} Downloading {ticker}...")
+            logger.info(f"[FETCH] Downloading {ticker}...")
             df = yf.download(ticker, start=self.start, end=self.end)
             if df.empty:
-                logging.warning(f"{Fore.RED}[WARN]{Style.RESET_ALL} No data fetched for {ticker}")
+                logger.warning(f"[WARN] No data fetched for {ticker}")
             else:
                 df.reset_index(inplace=True)
                 self.dataframes[ticker] = df
-                logging.info(f"{Fore.GREEN}[DONE]{Style.RESET_ALL} Fetched {len(df)} rows for {ticker}")
+                logger.info(f"[DONE] Fetched {len(df)} rows for {ticker}")
 
     def save_to_csv(self, path="data/processed/"):
         Path(path).mkdir(parents=True, exist_ok=True)
@@ -41,5 +35,4 @@ class DataIngestionAgent:
 
             file_path = Path(path) / f"{ticker}_stock_data.csv"
             df.to_csv(file_path, index=True)
-            logging.info(f"{Fore.MAGENTA}[SAVE]{Style.RESET_ALL} Saved {ticker} data to {file_path}")
-
+            logger.info(f"[SAVE] Saved {ticker} data to {file_path}")
