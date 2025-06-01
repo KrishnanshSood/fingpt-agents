@@ -1,0 +1,26 @@
+# Core Language + Chain Framework
+langchain>=0.1.14
+langchain-community>=0.0.36
+langchain-core>=0.1.40
+langchain-ollama>=0.1.0
+
+# Vector Store
+faiss-cpu>=1.7.4
+
+# PDF Processing & OCR
+PyPDF2>=3.0.1
+pdf2image>=1.16.3
+pytesseract>=0.3.10
+Pillow>=10.0.0
+
+# Progress Bar (if needed)
+tqdm>=4.66.1
+
+# Logging and Utilities
+colorlog>=6.8.2
+
+# Image and OCR dependencies
+opencv-python>=4.9.0.80
+
+# Optional for structured prompts
+pydantic>=2.5.3
